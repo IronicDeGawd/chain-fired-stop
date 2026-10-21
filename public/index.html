@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chain-Fired Stop</title>
+<link rel="icon" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#f6f5f1; --card:#ffffff; --line:#d9d6cc; --hair:#ece9e0; --ink:#1b1b18; --muted:#5c594f; --faint:#6b685e;
+  --bot:#9a3412; --bot-bg:#fbe6dc; --chain:#1f4fd1; --chain-bg:#dde7fb;
+  --sans:'IBM Plex Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:44px 16px 80px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:20px}
+.kicker{font-family:var(--mono);font-size:13px;color:var(--faint);letter-spacing:.04em}
+h1{margin:6px 0 0;font-size:34px;font-weight:600;letter-spacing:-.01em}
+.right{display:flex;align-items:center;gap:18px}
+.clock{font-family:var(--mono);font-size:28px;font-weight:500;min-width:110px;text-align:right}
+button.go{height:44px;padding:0 22px;border-radius:6px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);font:500 15px var(--sans);cursor:pointer}
+button.go:disabled{opacity:.45;cursor:default}
+.lanes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;margin-top:28px}
+@media (max-width:820px){.lanes{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:24px;display:flex;flex-direction:column;gap:12px;min-height:430px}
+.card-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.card h2{margin:0;font-size:18px;font-weight:600}
+.sub{font-size:14px;color:var(--muted);margin:0}
+.pill{font-family:var(--mono);font-size:12px;padding:4px 10px;border-radius:999px;background:var(--hair);color:var(--faint);white-space:nowrap}
+.pill.bot{background:var(--bot-bg);color:var(--bot)}
+.pill.chain{background:var(--chain-bg);color:var(--chain)}
+.log{list-style:none;margin:0;padding:0;font-family:var(--mono);font-size:13px;border-top:1px solid var(--hair)}
+.log li{display:flex;gap:16px;padding:9px 0;border-bottom:1px solid var(--hair);animation:in .25s ease-out}
+.log li:last-child{border-bottom:0}
+.log .t{color:var(--faint);width:70px;flex:none}
+.log .bot{color:var(--bot)} .log .chain{color:var(--chain)}
+.log .hash{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+@keyframes in{from{opacity:0;transform:translateY(-3px)}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.log li{animation:none}}
+.foot{margin-top:auto;display:flex;justify-content:space-between;font-size:14px;padding-top:8px}
+.foot b{font-family:var(--mono);font-weight:500}
+.foot + .foot{padding-top:0;margin-top:0}
+.clock-wrap{display:flex;flex-direction:column;align-items:flex-end}
+.clock-label{font-size:12px;color:var(--faint);white-space:nowrap}
+.clock,button.go{white-space:nowrap}
+.bot-text{color:var(--bot)}
+.ff{font-family:var(--mono);font-size:12px;padding:4px 8px;border-radius:4px;background:var(--ink);color:var(--paper);visibility:hidden}
+.ff.on{visibility:visible}
+.price{margin-top:22px;display:flex;flex-wrap:wrap;gap:8px 32px;font-family:var(--mono);font-size:13px;color:var(--faint)}
+.price b{color:var(--ink);font-weight:500}
+.note{margin-top:14px;font-size:13px;color:var(--faint)}
+.err{color:var(--bot)}
+/* write-up */
+article{max-width:720px;margin:72px auto 0;font-size:17px;line-height:1.65}
+article h2{font-size:24px;margin:44px 0 10px;font-weight:600}
+article p{margin:0 0 16px}
+article code,article pre{font-family:var(--mono);font-size:14px}
+article pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;overflow-x:auto;line-height:1.5}
+article table{width:100%;border-collapse:collapse;font-size:15px;margin:8px 0 20px}
+article th,article td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+article th{font-weight:600;color:var(--muted);font-size:13px}
+.mono{font-family:var(--mono);font-size:14px;word-break:break-all}
+#cursor{display:none;position:fixed;left:0;top:0;z-index:10;pointer-events:none;margin:-2px 0 0 -3px}
+html.render .card{min-height:540px}
+button.go.pressed{transform:scale(.96);background:#3a3a35}
+/* render mode: board only, on a transparent page, for the alpha clip */
+html.render body{background:transparent}
+html.render .wrap{padding:24px;max-width:1180px;background:var(--paper);border-radius:16px}
+html.render #writeup,html.render #note{display:none}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="head">
+    <div>
+      <div class="kicker" id="kicker">INCIDENT · ETH-PERP · 0.01 ETH LONG · STOP —</div>
+      <h1>Who closed the position?</h1>
+    </div>
+    <div class="right">
+      <span class="ff" id="ff">fast-forward ×10</span>
+      <div class="clock-wrap"><div class="clock" id="clock" aria-live="off">0.0 s</div><span class="clock-label">since the stop was set</span></div>
+      <button class="go" id="go" type="button">Start</button>
+    </div>
+  </header>
+
+  <section class="lanes" aria-label="Two stop-losses, side by side">
+    <div class="card">
+      <div class="card-top"><h2>Bot holds the stop</h2><span class="pill" id="bot-pill">IDLE</span></div>
+      <p class="sub">A script checks the price every 2 s and sends the sell itself.</p>
+      <ul class="log" id="bot-log" aria-live="polite"></ul>
+      <div class="foot"><span class="sub">No working stop</span><b id="bot-unprot" class="bot-text">—</b></div>
+      <div class="foot"><span class="sub">Position</span><b id="bot-pos">—</b></div>
+    </div>
+    <div class="card">
+      <div class="card-top"><h2>Chain holds the stop</h2><span class="pill" id="chain-pill">IDLE</span></div>
+      <p class="sub">Somnia wakes a contract every 5 s. No bot, no server.</p>
+      <ul class="log" id="chain-log" aria-live="polite"></ul>
+      <div class="foot"><span class="sub">Position</span><b id="chain-pos">—</b></div>
+    </div>
+  </section>
+
+  <div class="price"><span>Mark price <b id="mark">—</b></span><span>Stop <b id="stop">—</b></span><span id="source" style="margin-left:auto">Somnia Tokyo testnet · dreamDEX ETH perp</span></div>
+  <p class="note" id="note">Press Start: both accounts open the same long, set the same stop, and the demo cuts the bot's connection a few seconds in.</p>
+
+  <svg id="cursor" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 2l15 8.5-6.6 1.6L8.6 19z" fill="#1b1b18" stroke="#f6f5f1" stroke-width="1.5" stroke-linejoin="round"/></svg>
+  <article id="writeup" hidden>
+    <h2>Your stop-loss is only as alive as whatever holds it</h2>
+    <p>A stop-loss feels like a promise: price falls to a number, the position closes. But on most venues something has to be awake to keep that promise. Either the exchange's servers watch the price, or your own bot does. If that thing is down, slow or disconnected, the stop is just a number in a database.</p>
+    <p>On Somnia the chain can keep the promise itself. A contract asks the chain to wake it up every few seconds. When it wakes and the price is at the stop, it sells. Nobody signs that transaction and nothing off-chain is running.</p>
+
+    <h2>What the board shows</h2>
+    <p>Two accounts open the same 0.01 ETH long on the dreamDEX ETH perp on Somnia Tokyo testnet, and both get the same stop.</p>
+    <table>
+      <thead><tr><th></th><th>Bot holds the stop</th><th>Chain holds the stop</th></tr></thead>
+      <tbody>
+        <tr><td>Who watches the price</td><td>A script, every 2 s</td><td>Somnia, every 5 s</td></tr>
+        <tr><td>Who sends the sell</td><td>The script's key</td><td>The contract itself</td></tr>
+        <tr><td>If the watcher dies</td><td>Nothing happens</td><td>There is no watcher to die</td></tr>
+      </tbody>
+    </table>
+    <p>A few seconds in, the demo cuts the bot's connection, the way an RPC outage, a crashed laptop or a dead VPS would.</p>
+
+    <h2>The recorded run</h2>
+    <table>
+      <tbody>
+        <tr><td>Stop</td><td class="mono">$2,462.39</td></tr>
+        <tr><td>Bot's connection cut</td><td class="mono">4.6 s after the stop was set</td></tr>
+        <tr><td>Chain checks while waiting</td><td class="mono">27, all above the stop</td></tr>
+        <tr><td>Price first at the stop</td><td class="mono">137.1 s</td></tr>
+        <tr><td>Chain sold</td><td class="mono">143.0 s, at $2,461.78</td></tr>
+        <tr><td>Bot came back and sold</td><td class="mono">166.6 s, at $2,463.02</td></tr>
+        <tr><td>Time with no working stop</td><td class="mono">162 s</td></tr>
+      </tbody>
+    </table>
+    <p>In this run the price bounced, so the bot's late sale happened to land above the stop. That is luck, not protection: for 162 seconds the bot's position had no working stop at all, and only the chain acted when the price got there.</p>
+    <p>The chain's close is transaction <span class="mono">0x2f44a581caa614d317e62ee67ccb003cc9b1b3447845a47e0487e26c121c2c87</span> in block 29,381,212. Its sender is the contract <span class="mono">0x09e201dAF194DdC18345bd26cb6fD23E954Cd565</span>, because Somnia delivers a reaction as a transaction from the subscription's owner. No wallet signed it.</p>
+
+    <h2>How the chain wakes a contract</h2>
+    <p>Somnia Reactivity lets a contract subscribe to events, including a system <code>Schedule</code> event that fires once at a chosen time. The contract books a wake-up 5 seconds out; each time it wakes it checks the price, then books the next one.</p>
+<pre>function onEvent(address, bytes32[] calldata, bytes calldata) external {
+    require(msg.sender == REACTIVITY, "only chain");
+    (bool ok, uint256 mark) = pool.tryGetMarkPrice();
+    if (ok &amp;&amp; mark &lt;= stopPrice) { _close(mark); return; }
+    _scheduleNext(); // Schedule(now + 5 s)
+}</pre>
+    <p>The contract must hold 32 STT when it books a wake-up (a spam check, not a fee). Each wake-up and the final sale are paid from its balance: this whole run cost about 0.09 STT.</p>
+    <p>dreamDEX's own TP/SL on perps already work this way. The exchange's stop contracts are woken by the chain every 5 seconds, and each TP or SL holds 0.15 STT to pay for its trigger.</p>
+
+    <h2>Fine print</h2>
+    <p>The chain checks every 5 seconds, not continuously, so a stop can fire up to about 5 seconds after the price crosses (here it was 6 s, alarm plus block timing). It reads the exchange's mark price, which is smoothed, so a very short wick may not trigger it. This is testnet: the position was 0.01 ETH of test USDso.</p>
+  </article>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const usd = (n) => "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const short = (h) => h.slice(0, 10) + "…" + h.slice(-4);
+const params = new URLSearchParams(location.search);
+const REPLAY = params.get("replay") || window.REPLAY || null;
+const SPEED = Number(params.get("speed") || 1);
+
+let armedAt = null, stop = null, botOffline = false, crossedShown = false, clockTimer = null, clockBase = 0;
+let offlineAt = null, botBackAt = null, chainDoneAt = null;
+
+// The clock and the "no working stop" counter both read one run time (ms
+// since the run began), driven by the live timer or by the replay loop.
+function setNow(ms) {
+  if (armedAt !== null && chainDoneAt === null) $("clock").textContent = ((ms - armedAt) / 1000).toFixed(1) + " s";
+  if (offlineAt !== null) {
+    const end = botBackAt ?? ms;
+    $("bot-unprot").textContent = ((end - offlineAt) / 1000).toFixed(1) + " s";
+  }
+}
+
+function rel(ms) {
+  if (armedAt === null) return "setup";
+  const s = (ms - armedAt) / 1000;
+  return (s >= 0 ? "+" : "") + s.toFixed(1) + " s";
+}
+
+function line(lane, ms, html, cls = "") {
+  const li = document.createElement("li");
+  li.innerHTML = `<span class="t">${rel(ms)}</span><span class="${cls}">${html}</span>`;
+  $(lane + "-log").appendChild(li);
+}
+
+function hash(h) {
+  return `<span class="hash" title="Copy ${h}" data-h="${h}">${short(h)}</span>`;
+}
+
+function pill(lane, text, on) {
+  const p = $(lane + "-pill");
+  p.textContent = text;
+  p.className = "pill" + (on ? " " + lane : "");
+}
+
+function startLiveClock() {
+  clockBase = performance.now();
+  clearInterval(clockTimer);
+  clockTimer = setInterval(() => setNow(performance.now() - clockBase), 100);
+}
+
+function reset() {
+  armedAt = null; stop = null; botOffline = false; crossedShown = false;
+  offlineAt = null; botBackAt = null; chainDoneAt = null;
+  $("bot-unprot").textContent = "—"; $("ff").classList.remove("on");
+  ["bot-log", "chain-log"].forEach((id) => ($(id).innerHTML = ""));
+  pill("bot", "IDLE"); pill("chain", "IDLE");
+  $("bot-pos").textContent = "—"; $("chain-pos").textContent = "—";
+  $("mark").textContent = "—"; $("stop").textContent = "—";
+  $("clock").textContent = "0.0 s";
+}
+
+function handle(e) {
+  if (e.kind === "error") { $("note").innerHTML = `<span class="err">Run stopped: ${e.message}</span>`; return; }
+  if (e.lane === "price") {
+    $("mark").textContent = usd(e.price);
+    if (botOffline && stop !== null && e.price <= stop && !crossedShown) {
+      crossedShown = true;
+      line("bot", e.ms, "price crossed the stop · nobody watching", "bot");
+    }
+    return;
+  }
+  const L = e.lane;
+  switch (e.kind) {
+    case "open":
+      line(L, e.ms, `opened 0.01 ETH long @ ${usd(e.price)}`);
+      $(L + "-pos").textContent = "0.01 ETH long";
+      break;
+    case "armed":
+      if (L === "chain") {
+        armedAt = e.ms; stop = e.stop;
+        $("stop").textContent = usd(stop);
+        $("kicker").textContent = `INCIDENT · ETH-PERP · 0.01 ETH LONG · STOP ${usd(stop)}`;
+        line("chain", e.ms, `armed · stop ${usd(e.stop)} · chain alarm every 5 s`);
+        pill("chain", "ARMED", true);
+      } else {
+        line("bot", e.ms, `stop ${usd(e.stop)} · polling every 2 s`);
+        pill("bot", "WATCHING", false);
+      }
+      break;
+    case "poll":
+      line("bot", e.ms, `poll · ${usd(e.price)} · ${e.hit ? "SELL" : "hold"}`);
+      break;
+    case "offline":
+      botOffline = true; offlineAt = e.ms;
+      line("bot", e.ms, "connection cut by the demo", "bot");
+      pill("bot", "OFFLINE", true);
+      break;
+    case "tick": {
+      // One line that updates in place: the card never grows while it waits.
+      let li = $("chain-tick");
+      if (!li) {
+        line("chain", e.ms, "");
+        li = $("chain-log").lastElementChild;
+        li.id = "chain-tick";
+      }
+      li.querySelector(".t").textContent = rel(e.ms);
+      li.lastElementChild.textContent = `chain check ${e.n} · ${usd(e.price)} · above stop`;
+      break;
+    }
+    case "fired":
+      line("chain", e.ms, `chain check · ${usd(e.price)} ≤ stop · SELL`, "chain");
+      line("chain", e.ms, `0.01 ETH closed · ${(e.gasUsed / 1e6).toFixed(2)}M gas`);
+      line("chain", e.ms, `sent by the contract itself · ${hash(e.tx)}`);
+      $("chain-pos").textContent = "0.00 ETH";
+      pill("chain", "CLOSED BY CHAIN", true);
+      $("clock").textContent = ((e.ms - armedAt) / 1000).toFixed(1) + " s";
+      chainDoneAt = e.ms;
+      break;
+    case "disarmed":
+      line("chain", e.ms, `alarm stopped · ${e.reason}`);
+      break;
+    case "reconnected":
+      line("bot", e.ms, "bot reconnects · position still open", "bot");
+      break;
+    case "closed":
+      if (e.online) {
+        line("bot", e.ms, `sold @ ${usd(e.price)} · ${hash(e.tx)}`);
+        pill("bot", "CLOSED", false);
+      } else {
+        const gap = stop - e.price;
+        line("bot", e.ms, `sold late @ ${usd(e.price)} · ${gap >= 0 ? usd(gap) + " below" : usd(-gap) + " above"} the stop`, "bot");
+        line("bot", e.ms, hash(e.tx));
+        pill("bot", "CLOSED LATE", true);
+      }
+      if (offlineAt !== null) { botBackAt = e.ms; setNow(e.ms); }
+      $("bot-pos").textContent = "0.00 ETH";
+      break;
+  }
+}
+
+function done(run) {
+  clearInterval(clockTimer);
+  $("ff").classList.remove("on");
+  $("go").disabled = false;
+  $("go").textContent = "Run again";
+  if (run.error) return;
+  $("note").textContent = run.result ? `Result: ${run.result}.` : "";
+}
+
+document.addEventListener("click", (ev) => {
+  const h = ev.target.closest(".hash");
+  if (h) navigator.clipboard?.writeText(h.dataset.h);
+});
+
+// Replays a saved run on a virtual clock. With fast-forward on (default), the
+// stretch of repeated "above stop" chain ticks plays at x10 under a visible
+// badge; the opening, the last two ticks, the fire and the bot's return play
+// in real time. Every number shown is still the recorded one.
+async function replay(url) {
+  const run = await (await fetch(url)).json();
+  reset();
+  $("go").disabled = true;
+  const ev = run.events;
+  const ticks = ev.filter((e) => e.kind === "tick").map((e) => e.ms);
+  // Fast-forward windows: the repeated ticks (after tick 2, until the last two),
+  // and the quiet wait between the chain's sale and the bot reconnecting.
+  const windows = [];
+  if (ticks.length > 4) windows.push([ticks[1], ticks[ticks.length - 2]]);
+  const fired = ev.find((e) => e.kind === "fired"), back = ev.find((e) => e.kind === "reconnected");
+  if (fired && back && back.ms - fired.ms > 6000) windows.push([fired.ms + 2000, back.ms - 2000]);
+  const inFF = (t) => windows.some(([a, b]) => t >= a && t < b);
+  const useFF = params.get("ff") !== "0";
+  let vt = 0, last = performance.now();
+  for (const e of ev) {
+    while (vt < e.ms) {
+      const dt = await frame();
+      const now = performance.now();
+      const fast = useFF && inFF(vt);
+      $("ff").classList.toggle("on", fast);
+      vt = Math.min(e.ms, vt + (dt ?? now - last) * SPEED * (fast ? 10 : 1));
+      last = now;
+      setNow(vt);
+    }
+    handle(e);
+  }
+  done(run);
+}
+
+// Render mode (?render=1): the page waits for the renderer to step it one
+// frame at a time (window.__step), so a recording is identical every time.
+const RENDER = params.get("render") === "1";
+const FRAME_MS = 1000 / 30;
+let stepResolve = null;
+function frame() {
+  if (!RENDER) return new Promise((r) => requestAnimationFrame(() => r(null)));
+  return new Promise((r) => (stepResolve = () => r(FRAME_MS)));
+}
+window.__step = () => { const r = stepResolve; stepResolve = null; if (r) r(); return !!r; };
+window.__finished = false;
+
+// A cursor glides to Start and presses it, then the replay begins.
+async function renderIntro() {
+  const c = $("cursor"), b = $("go").getBoundingClientRect();
+  const from = { x: b.left - 260, y: b.top + 160 }, to = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+  c.style.display = "block";
+  const approach = 20, press = 6;
+  for (let i = 0; i <= approach + press + 6; i++) {
+    const k = Math.min(1, i / approach), ease = 1 - Math.pow(1 - k, 3);
+    c.style.transform = `translate(${from.x + (to.x - from.x) * ease}px, ${from.y + (to.y - from.y) * ease}px)`;
+    $("go").classList.toggle("pressed", i > approach && i <= approach + press);
+    await frame();
+  }
+  c.style.display = "none";
+}
+
+function live() {
+  reset();
+  startLiveClock();
+  $("go").disabled = true;
+  $("note").textContent = "Opening both positions on Somnia Tokyo testnet…";
+  const es = new EventSource("/run");
+  es.addEventListener("tick", (m) => handle(JSON.parse(m.data)));
+  es.addEventListener("done", (m) => { es.close(); done(JSON.parse(m.data)); });
+  es.addEventListener("error", (m) => {
+    if (m.data) handle({ kind: "error", ...JSON.parse(m.data) });
+    es.close(); $("go").disabled = false;
+  });
+}
+
+if (REPLAY) {
+  $("writeup").hidden = false;
+  $("note").textContent = "Press Start to replay a recorded run. Every price, time and hash is from Somnia Tokyo testnet.";
+}
+$("go").addEventListener("click", () => (REPLAY ? replay(REPLAY) : live()));
+if (RENDER && REPLAY) {
+  document.documentElement.classList.add("render");
+  (async () => {
+    await document.fonts.ready;
+    await renderIntro();
+    await replay(REPLAY);
+    for (let i = 0; i < 45; i++) await frame(); // hold the end state 1.5 s
+    window.__finished = true;
+  })();
+} else if (REPLAY && params.get("autoplay") === "1") replay(REPLAY);
+</script>
+</body>
+</html>
