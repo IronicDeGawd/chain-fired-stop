@@ -221,6 +221,7 @@ function handle(e) {
     if (botOffline && stop !== null && e.price <= stop && !crossedShown) {
       crossedShown = true;
       line("bot", e.ms, "price crossed the stop · nobody watching", "bot");
+      if (RENDER) window.__marks.push({ lane: "price", kind: "crossed", frame: renderFrame });
     }
     return;
   }
@@ -319,12 +320,20 @@ async function replay(url) {
   const ticks = ev.filter((e) => e.kind === "tick").map((e) => e.ms);
   // Fast-forward windows: the repeated ticks (after tick 2, until the last two),
   // and the quiet wait between the chain's sale and the bot reconnecting.
+  // ?ffwide=1 (short cut for the film) also speeds the opening orders and runs
+  // the tick stretch from just after the bot's cut to the last check.
   const windows = [];
-  if (ticks.length > 4) windows.push([ticks[1], ticks[ticks.length - 2]]);
   const fired = ev.find((e) => e.kind === "fired"), back = ev.find((e) => e.kind === "reconnected");
+  const armedEv = ev.find((e) => e.kind === "armed"), cut = ev.find((e) => e.kind === "offline");
+  if (params.get("ffwide") === "1" && armedEv && cut && ticks.length) {
+    windows.push([0, armedEv.ms - 300]);
+    windows.push([cut.ms + 1000, ticks[ticks.length - 1]]);
+  } else if (ticks.length > 4) windows.push([ticks[1], ticks[ticks.length - 2]]);
   if (fired && back && back.ms - fired.ms > 6000) windows.push([fired.ms + 2000, back.ms - 2000]);
   const inFF = (t) => windows.some(([a, b]) => t >= a && t < b);
   const useFF = params.get("ff") !== "0";
+  const FFX = Number(params.get("ffx") || 10);
+  $("ff").textContent = `fast-forward ×${FFX}`;
   let vt = 0, last = performance.now();
   for (const e of ev) {
     while (vt < e.ms) {
@@ -332,11 +341,12 @@ async function replay(url) {
       const now = performance.now();
       const fast = useFF && inFF(vt);
       $("ff").classList.toggle("on", fast);
-      vt = Math.min(e.ms, vt + (dt ?? now - last) * SPEED * (fast ? 10 : 1));
+      vt = Math.min(e.ms, vt + (dt ?? now - last) * SPEED * (fast ? FFX : 1));
       last = now;
       setNow(vt);
     }
     handle(e);
+    if (RENDER) window.__marks.push({ lane: e.lane, kind: e.kind, frame: renderFrame });
   }
   done(run);
 }
@@ -345,10 +355,11 @@ async function replay(url) {
 // frame at a time (window.__step), so a recording is identical every time.
 const RENDER = params.get("render") === "1";
 const FRAME_MS = 1000 / 30;
-let stepResolve = null;
+let stepResolve = null, renderFrame = 0;
+window.__marks = []; // clip frame of each event, for edit notes
 function frame() {
   if (!RENDER) return new Promise((r) => requestAnimationFrame(() => r(null)));
-  return new Promise((r) => (stepResolve = () => r(FRAME_MS)));
+  return new Promise((r) => (stepResolve = () => { renderFrame++; r(FRAME_MS); }));
 }
 window.__step = () => { const r = stepResolve; stepResolve = null; if (r) r(); return !!r; };
 window.__finished = false;
@@ -363,6 +374,7 @@ async function renderIntro() {
     const k = Math.min(1, i / approach), ease = 1 - Math.pow(1 - k, 3);
     c.style.transform = `translate(${from.x + (to.x - from.x) * ease}px, ${from.y + (to.y - from.y) * ease}px)`;
     $("go").classList.toggle("pressed", i > approach && i <= approach + press);
+    if (i === approach + 1) window.__marks.push({ lane: "cursor", kind: "click", frame: renderFrame });
     await frame();
   }
   c.style.display = "none";

@@ -21,7 +21,9 @@ await mkdir(frames, { recursive: true });
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1228, height: 900 }, deviceScaleFactor: 2 });
-await page.goto(`http://localhost:${PORT}/?replay=/runs/${basename(run)}&render=1`);
+const FFX = process.env.FFX || 10;
+const WIDE = process.env.FF_WIDE === "1" ? "&ffwide=1" : "";
+await page.goto(`http://localhost:${PORT}/?replay=/runs/${basename(run)}&render=1&ffx=${FFX}${WIDE}`);
 await page.waitForFunction(() => document.fonts.status === "loaded");
 const board = page.locator(".wrap");
 
@@ -36,13 +38,15 @@ for (;;) {
   }));
   if (n % 300 === 0) console.log(`${n} frames (${(n / FPS).toFixed(0)} s)`);
 }
+const marks = await page.evaluate(() => window.__marks);
 await browser.close();
 console.log(`${n} frames, ${(n / FPS).toFixed(1)} s`);
+for (const m of marks) if (!["poll", "tick", "mark"].includes(m.kind)) console.log(`  ${(m.frame / FPS).toFixed(2)} s  ${m.lane} ${m.kind}`);
 
 const input = ["-y", "-framerate", String(FPS), "-i", join(frames, "f%05d.png")];
 const even = "pad=ceil(iw/2)*2:ceil(ih/2)*2:color=0x00000000";
 execFileSync("ffmpeg", [...input, "-vf", even, "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", join(out, "card-alpha.mov")], { stdio: "inherit" });
 execFileSync("ffmpeg", [...input, "-vf", even, "-c:v", "libvpx-vp9", "-pix_fmt", "yuva420p", "-b:v", "0", "-crf", "30", join(out, "card-alpha.webm")], { stdio: "inherit" });
-execFileSync("ffmpeg", [...input, "-filter_complex", `color=c=0xe4e2da:s=2600x1900:r=${FPS}[bg];[bg][0:v]overlay=(W-w)/2:(H-h)/2:shortest=1,format=yuv420p`, "-c:v", "libx264", "-crf", "18", join(out, "card.mp4")], { stdio: "inherit" });
+if (process.env.SKIP_MP4 !== "1") execFileSync("ffmpeg", [...input, "-filter_complex", `color=c=0xe4e2da:s=2600x1900:r=${FPS}[bg];[bg][0:v]overlay=(W-w)/2:(H-h)/2:shortest=1,format=yuv420p`, "-c:v", "libx264", "-crf", "18", join(out, "card.mp4")], { stdio: "inherit" });
 await copyFile(join(frames, `f${String(n - 1).padStart(5, "0")}.png`), join(out, "final-frame.png"));
 console.log(`wrote ${out}/card-alpha.mov, card-alpha.webm, card.mp4, final-frame.png`);
