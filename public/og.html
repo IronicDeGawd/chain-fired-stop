@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Chain-Fired Stop share card</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+*{box-sizing:border-box}
+body{margin:0;width:1200px;height:630px;background:#f6f5f1;color:#1b1b18;font-family:'IBM Plex Sans',sans-serif}
+.card{width:1200px;height:630px;padding:64px 72px;display:flex;flex-direction:column;gap:28px}
+.kicker{font-family:'IBM Plex Mono',monospace;font-size:20px;color:#6b685e;letter-spacing:.04em}
+h1{margin:0;font-size:76px;line-height:1.02;font-weight:600;letter-spacing:-.02em}
+.sub{font-size:28px;color:#5c594f;max-width:900px;line-height:1.35}
+.row{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.lane{background:#fff;border:1px solid #d9d6cc;border-radius:12px;padding:22px 26px;display:flex;justify-content:space-between;align-items:center}
+.lane span{font-size:22px;font-weight:600}
+.lane b{font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:20px;padding:6px 14px;border-radius:999px}
+.bot b{background:#fbe6dc;color:#9a3412}
+.chain b{background:#dde7fb;color:#1f4fd1}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="kicker">INCIDENT · ETH-PERP · SOMNIA TOKYO TESTNET</div>
+  <h1>Who closed the position?</h1>
+  <div class="sub">My bot held the stop-loss and went offline. The chain sold by itself, with nobody signing.</div>
+  <div class="row">
+    <div class="lane bot"><span>Bot holds the stop</span><b>162 s unprotected</b></div>
+    <div class="lane chain"><span>Chain holds the stop</span><b>closed by chain</b></div>
+  </div>
+</div>
+</body>
+</html>
