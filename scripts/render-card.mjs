@@ -23,7 +23,8 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1228, height: 900 }, deviceScaleFactor: 2 });
 const FFX = process.env.FFX || 10;
 const WIDE = process.env.FF_WIDE === "1" ? "&ffwide=1" : "";
-await page.goto(`http://localhost:${PORT}/?replay=/runs/${basename(run)}&render=1&ffx=${FFX}${WIDE}`);
+const CUES = process.env.CUES ? `&cues=${encodeURIComponent(process.env.CUES)}` : "";
+await page.goto(`http://localhost:${PORT}/?replay=/runs/${basename(run)}&render=1&ffx=${FFX}${WIDE}${CUES}`);
 await page.waitForFunction(() => document.fonts.status === "loaded");
 const board = page.locator(".wrap");
 

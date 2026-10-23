@@ -399,7 +399,83 @@ if (REPLAY) {
   $("note").textContent = "Press Start to replay a recorded run. Every price, time and hash is from Somnia Tokyo testnet.";
 }
 $("go").addEventListener("click", () => (REPLAY ? replay(REPLAY) : live()));
-if (RENDER && REPLAY) {
+// Cue-timed render (?render=1&cues=click:8.2,armed:9.1,offline:13.7,crossed:15.3,
+// fired:17.1,closed:22.2,end:25.5): each named moment of the run lands on a
+// given clip second, so the board follows a narrator's words. Run time is
+// stretched linearly between cues; whenever a stretch runs faster than real
+// time the badge shows its actual factor. Every number shown is still recorded.
+async function cueRender(url, spec) {
+  const run = await (await fetch(url)).json();
+  // Price reads are logged when they return, so a few sit slightly out of
+  // order; sort by time so no event waits behind a later one.
+  const ev = [...run.events].sort((a, b) => a.ms - b.ms);
+  const find = (pred) => ev.find(pred);
+  const cut = find((e) => e.kind === "offline");
+  const anchorMs = {
+    click: 0,
+    armed: find((e) => e.kind === "armed" && e.lane === "chain").ms,
+    offline: cut.ms,
+    crossed: find((e) => e.lane === "price" && e.ms > cut.ms && e.price <= run.stop).ms,
+    fired: find((e) => e.kind === "fired").ms,
+    closed: find((e) => e.kind === "closed" && e.lane === "bot").ms,
+  };
+  const cues = Object.fromEntries(spec.split(",").map((p) => p.split(":")).map(([k, v]) => [k, Number(v)]));
+  const pts = Object.keys(anchorMs).filter((k) => k in cues).map((k) => [cues[k], anchorMs[k]]);
+  const endT = cues.end ?? pts[pts.length - 1][0] + 1.5;
+  const at = (t) => { // clip seconds -> [run ms, speed factor]
+    if (t <= pts[0][0]) return [0, 1];
+    for (let i = 1; i < pts.length; i++) {
+      const [t0, m0] = pts[i - 1], [t1, m1] = pts[i];
+      if (t <= t1) return [m0 + (m1 - m0) * (t - t0) / (t1 - t0), (m1 - m0) / 1000 / (t1 - t0)];
+    }
+    return [ev[ev.length - 1].ms, 1];
+  };
+
+  reset();
+  const c = $("cursor"), b = $("go").getBoundingClientRect();
+  const from = { x: b.left - 260, y: b.top + 160 }, to = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+  const clickT = cues.click, approach = 0.9;
+  let next = 0, clicked = false;
+  for (;;) {
+    const t = renderFrame / 30 + 1e-6; // so a cue on an exact frame lands on that frame
+    if (t >= clickT - approach && t < clickT + 0.45) {
+      const k = Math.min(1, (t - (clickT - approach)) / approach), ease = 1 - Math.pow(1 - k, 3);
+      c.style.display = "block";
+      c.style.transform = `translate(${from.x + (to.x - from.x) * ease}px, ${from.y + (to.y - from.y) * ease}px)`;
+    } else c.style.display = "none";
+    $("go").classList.toggle("pressed", t >= clickT && t < clickT + 0.2);
+    if (t >= clickT && !clicked) {
+      clicked = true;
+      $("go").disabled = true;
+      window.__marks.push({ lane: "cursor", kind: "click", frame: renderFrame });
+    }
+    if (clicked) {
+      const [vt, speed] = at(t);
+      const fast = speed >= 1.5;
+      $("ff").textContent = `fast-forward ×${Math.round(speed)}`;
+      $("ff").classList.toggle("on", fast);
+      while (next < ev.length && ev[next].ms <= vt) {
+        handle(ev[next]);
+        window.__marks.push({ lane: ev[next].lane, kind: ev[next].kind, frame: renderFrame });
+        next++;
+      }
+      setNow(vt);
+    }
+    if (t >= endT) break;
+    await frame();
+  }
+  while (next < ev.length) handle(ev[next++]);
+  done(run);
+}
+
+if (RENDER && REPLAY && params.get("cues")) {
+  document.documentElement.classList.add("render");
+  (async () => {
+    await document.fonts.ready;
+    await cueRender(REPLAY, params.get("cues"));
+    window.__finished = true;
+  })();
+} else if (RENDER && REPLAY) {
   document.documentElement.classList.add("render");
   (async () => {
     await document.fonts.ready;
