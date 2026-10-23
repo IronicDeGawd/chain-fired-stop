@@ -17,8 +17,11 @@ await browser.close();
 
 // The board's header (title, clock, Run again button) is cropped off: the
 // article has its own title, and a button in a picture invites a click.
+// FOOTER_PX trims the bottom too (the price trace), for a run whose trace
+// has nothing to show by the end.
 const HEADER = Number(process.env.HEADER_PX || 262);
+const FOOTER = Number(process.env.FOOTER_PX || 0);
 execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", frame,
-  "-filter_complex", `color=c=0xf6f5f1:s=2400x1810[bg];[0]crop=iw:ih-${HEADER}:0:${HEADER}[b];[bg][b]overlay=(W-w)/2:(H-h)/2:shortest=1,crop=2400:1810-${HEADER}:0:${HEADER / 2},scale=1600:-2`,
+  "-filter_complex", `[0]crop=iw:ih-${HEADER + FOOTER}:0:${HEADER},pad=iw+40:ih+40:20:20:color=0xf6f5f1,scale=1600:-2`,
   "-frames:v", "1", "-q:v", "3", "site/demo.jpg"]);
 console.log("site/ images built: og.png, demo.jpg");
