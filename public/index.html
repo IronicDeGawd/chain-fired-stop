@@ -43,6 +43,10 @@ button.go:disabled{opacity:.45;cursor:default}
 .foot{margin-top:auto;display:flex;justify-content:space-between;font-size:14px;padding-top:8px}
 .foot b{font-family:var(--mono);font-weight:500}
 .foot + .foot{padding-top:0;margin-top:0}
+.foot.pnl{align-items:baseline}
+.foot.pnl b{font-size:26px}
+.chain-text{color:var(--chain)}
+.trace{display:block;width:100%;height:120px;margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:10px;font-family:var(--mono);font-size:12px}
 .clock-wrap{display:flex;flex-direction:column;align-items:flex-end}
 .clock-label{font-size:12px;color:var(--faint);white-space:nowrap}
 .clock,button.go{white-space:nowrap}
@@ -93,15 +97,18 @@ html.render #writeup,html.render #note{display:none}
       <ul class="log" id="bot-log" aria-live="polite"></ul>
       <div class="foot"><span class="sub">No working stop</span><b id="bot-unprot" class="bot-text">—</b></div>
       <div class="foot"><span class="sub">Position</span><b id="bot-pos">—</b></div>
+      <div class="foot pnl"><span class="sub" id="bot-pnl-label">P&amp;L</span><b id="bot-pnl" class="bot-text">—</b></div>
     </div>
     <div class="card">
       <div class="card-top"><h2>Chain holds the stop</h2><span class="pill" id="chain-pill">IDLE</span></div>
       <p class="sub">Somnia wakes a contract every 5 s. No bot, no server.</p>
       <ul class="log" id="chain-log" aria-live="polite"></ul>
       <div class="foot"><span class="sub">Position</span><b id="chain-pos">—</b></div>
+      <div class="foot pnl"><span class="sub" id="chain-pnl-label">P&amp;L</span><b id="chain-pnl" class="chain-text">—</b></div>
     </div>
   </section>
 
+  <svg id="trace" class="trace" aria-hidden="true"></svg>
   <div class="price"><span>Mark price <b id="mark">—</b></span><span>Stop <b id="stop">—</b></span><span id="source" style="margin-left:auto">Somnia Tokyo testnet · dreamDEX ETH perp</span></div>
   <p class="note" id="note">Press Start: both accounts open the same long, set the same stop, and the demo cuts the bot's connection a few seconds in.</p>
 
@@ -164,6 +171,9 @@ const SPEED = Number(params.get("speed") || 1);
 
 let armedAt = null, stop = null, botOffline = false, crossedShown = false, clockTimer = null, clockBase = 0;
 let offlineAt = null, botBackAt = null, chainDoneAt = null;
+// Position size and price range come from a replayed run; a live run uses the defaults.
+let qty = 0.01, traceRange = null;
+let entry = {}, settled = {}, sold = {}, marks = [];
 
 // The clock and the "no working stop" counter both read one run time (ms
 // since the run began), driven by the live timer or by the replay loop.
@@ -173,6 +183,50 @@ function setNow(ms) {
     const end = botBackAt ?? ms;
     $("bot-unprot").textContent = ((end - offlineAt) / 1000).toFixed(1) + " s";
   }
+  drawTrace(ms);
+}
+
+const signed = (n) => (n < 0 ? "−" : "+") + usd(Math.abs(n));
+function pnl(lane, price, final = false) {
+  if (entry[lane] === undefined || settled[lane]) return;
+  $(lane + "-pnl").textContent = signed((price - entry[lane]) * qty);
+  $(lane + "-pnl-label").textContent = final ? "Realised P&L" : "Open P&L";
+  settled[lane] = final;
+}
+
+// Mark price over the last 40 s of run time: the stop as a dashed line, the
+// bot's offline stretch shaded, and a dot where each lane sold.
+const TRACE_MS = 40000;
+function drawTrace(now) {
+  const svg = $("trace"), W = svg.clientWidth, H = svg.clientHeight;
+  if (!marks.length || !W) return;
+  const left = Math.max(marks[0].ms, now - TRACE_MS);
+  const shown = marks.filter((m) => m.ms >= left - 1000 && m.ms <= now);
+  let [lo, hi] = traceRange ?? [Math.min(...shown.map((m) => m.price), stop ?? Infinity), Math.max(...shown.map((m) => m.price), stop ?? -Infinity)];
+  if (!traceRange && hi - lo < 2) { const mid = (hi + lo) / 2; lo = mid - 1; hi = mid + 1; }
+  const x0 = 16, x1 = W - 104, y0 = 22, y1 = H - 14;
+  const X = (ms) => x0 + Math.max(0, ms - left) / TRACE_MS * (x1 - x0);
+  const Y = (p) => y0 + (hi - p) / (hi - lo) * (y1 - y0);
+  let s = "";
+  if (offlineAt !== null) {
+    const a = X(offlineAt), b = X(botBackAt ?? now);
+    s += `<rect x="${a}" y="1" width="${Math.max(0, b - a)}" height="${H - 2}" fill="var(--bot-bg)" opacity=".55"/>`;
+    if (b - a > 90) s += `<text x="${a + 8}" y="15" fill="var(--bot)">bot offline</text>`;
+  }
+  if (stop !== null) s += `<line x1="${x0}" x2="${x1}" y1="${Y(stop)}" y2="${Y(stop)}" stroke="var(--muted)" stroke-dasharray="4 4"/>`
+    + `<text x="${x0}" y="${Y(stop) + 14}" fill="var(--faint)">stop ${usd(stop)}</text>`;
+  s += `<polyline fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round" points="${shown.map((m) => `${X(m.ms)},${Y(m.price)}`).join(" ")}"/>`;
+  for (const L of ["chain", "bot"]) if (sold[L] && sold[L].ms >= left) {
+    const { ms, price } = sold[L], x = X(ms), y = Y(price), below = y < H / 2;
+    s += `<circle cx="${x}" cy="${y}" r="5" fill="var(--${L})"/>`
+      + `<text x="${x}" y="${below ? y + 20 : y - 10}" text-anchor="middle" fill="var(--${L})">${L} sold</text>`;
+  }
+  const lastMark = shown[shown.length - 1];
+  if (lastMark && !(sold.bot && sold.bot.ms <= now)) {
+    const x = X(lastMark.ms), y = Y(lastMark.price);
+    s += `<circle cx="${x}" cy="${y}" r="3.5" fill="var(--ink)"/><text x="${x + 10}" y="${y + 4}" fill="var(--ink)">${usd(lastMark.price)}</text>`;
+  }
+  svg.innerHTML = s;
 }
 
 function rel(ms) {
@@ -212,12 +266,17 @@ function reset() {
   $("bot-pos").textContent = "—"; $("chain-pos").textContent = "—";
   $("mark").textContent = "—"; $("stop").textContent = "—";
   $("clock").textContent = "0.0 s";
+  entry = {}; settled = {}; sold = {}; marks = [];
+  for (const L of ["bot", "chain"]) { $(L + "-pnl").textContent = "—"; $(L + "-pnl-label").textContent = "P&L"; }
+  $("trace").innerHTML = "";
 }
 
 function handle(e) {
   if (e.kind === "error") { $("note").innerHTML = `<span class="err">Run stopped: ${e.message}</span>`; return; }
   if (e.lane === "price") {
     $("mark").textContent = usd(e.price);
+    marks.push(e);
+    pnl("bot", e.price); pnl("chain", e.price);
     if (botOffline && stop !== null && e.price <= stop && !crossedShown) {
       crossedShown = true;
       line("bot", e.ms, "price crossed the stop · nobody watching", "bot");
@@ -228,14 +287,15 @@ function handle(e) {
   const L = e.lane;
   switch (e.kind) {
     case "open":
-      line(L, e.ms, `opened 0.01 ETH long @ ${usd(e.price)}`);
-      $(L + "-pos").textContent = "0.01 ETH long";
+      line(L, e.ms, `opened ${qty} ETH long @ ${usd(e.price)}`);
+      $(L + "-pos").textContent = `${qty} ETH long`;
+      entry[L] = e.price; pnl(L, e.price);
       break;
     case "armed":
       if (L === "chain") {
         armedAt = e.ms; stop = e.stop;
         $("stop").textContent = usd(stop);
-        $("kicker").textContent = `INCIDENT · ETH-PERP · 0.01 ETH LONG · STOP ${usd(stop)}`;
+        $("kicker").textContent = `INCIDENT · ETH-PERP · ${qty} ETH LONG · STOP ${usd(stop)}`;
         line("chain", e.ms, `armed · stop ${usd(e.stop)} · chain alarm every 5 s`);
         pill("chain", "ARMED", true);
       } else {
@@ -265,9 +325,10 @@ function handle(e) {
     }
     case "fired":
       line("chain", e.ms, `chain check · ${usd(e.price)} ≤ stop · SELL`, "chain");
-      line("chain", e.ms, `0.01 ETH closed · ${(e.gasUsed / 1e6).toFixed(2)}M gas`);
-      line("chain", e.ms, `sent by the contract itself · ${hash(e.tx)}`);
+      line("chain", e.ms, `${qty} ETH closed · ${(e.gasUsed / 1e6).toFixed(2)}M gas`);
+      line("chain", e.ms, "sent by the contract itself" + (e.tx ? ` · ${hash(e.tx)}` : ""));
       $("chain-pos").textContent = "0.00 ETH";
+      pnl("chain", e.price, true); sold.chain = e;
       pill("chain", "CLOSED BY CHAIN", true);
       $("clock").textContent = ((e.ms - armedAt) / 1000).toFixed(1) + " s";
       chainDoneAt = e.ms;
@@ -280,16 +341,17 @@ function handle(e) {
       break;
     case "closed":
       if (e.online) {
-        line("bot", e.ms, `sold @ ${usd(e.price)} · ${hash(e.tx)}`);
+        line("bot", e.ms, `sold @ ${usd(e.price)}` + (e.tx ? ` · ${hash(e.tx)}` : ""));
         pill("bot", "CLOSED", false);
       } else {
         const gap = stop - e.price;
         line("bot", e.ms, `sold late @ ${usd(e.price)} · ${gap >= 0 ? usd(gap) + " below" : usd(-gap) + " above"} the stop`, "bot");
-        line("bot", e.ms, hash(e.tx));
+        if (e.tx) line("bot", e.ms, hash(e.tx));
         pill("bot", "CLOSED LATE", true);
       }
-      if (offlineAt !== null) { botBackAt = e.ms; setNow(e.ms); }
       $("bot-pos").textContent = "0.00 ETH";
+      pnl("bot", e.price, true); sold.bot = e;
+      if (offlineAt !== null) { botBackAt = e.ms; setNow(e.ms); }
       break;
   }
 }
@@ -301,6 +363,19 @@ function done(run) {
   $("go").textContent = "Run again";
   if (run.error) return;
   $("note").textContent = run.result ? `Result: ${run.result}.` : "";
+}
+
+// A replayed run sets the position size and a fixed price range for the trace.
+// A scripted run (scripts/script-run.mjs) says so, and the write-up of the
+// recorded run is hidden because its numbers no longer match.
+function useRun(run) {
+  qty = run.settings?.quantity ?? 0.01;
+  const ps = run.events.filter((e) => e.lane === "price").map((e) => e.price);
+  traceRange = ps.length ? [Math.min(...ps, run.stop) - 3, Math.max(...ps, run.stop) + 2] : null;
+  if (run.scripted) {
+    $("writeup").hidden = true;
+    $("note").textContent = "Scripted prices for a film: event times are from a recorded run, the prices after the bot's cut are not.";
+  }
 }
 
 document.addEventListener("click", (ev) => {
@@ -315,6 +390,7 @@ document.addEventListener("click", (ev) => {
 async function replay(url) {
   const run = await (await fetch(url)).json();
   reset();
+  useRun(run);
   $("go").disabled = true;
   const ev = run.events;
   const ticks = ev.filter((e) => e.kind === "tick").map((e) => e.ms);
@@ -432,6 +508,7 @@ async function cueRender(url, spec) {
   };
 
   reset();
+  useRun(run);
   const c = $("cursor"), b = $("go").getBoundingClientRect();
   const from = { x: b.left - 260, y: b.top + 160 }, to = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
   const clickT = cues.click, approach = 0.9;

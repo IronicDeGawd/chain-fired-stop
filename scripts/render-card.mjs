@@ -20,7 +20,7 @@ await rm(frames, { recursive: true, force: true });
 await mkdir(frames, { recursive: true });
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1228, height: 900 }, deviceScaleFactor: 2 });
+const page = await browser.newPage({ viewport: { width: 1228, height: 1200 }, deviceScaleFactor: 2 });
 const FFX = process.env.FFX || 10;
 const WIDE = process.env.FF_WIDE === "1" ? "&ffwide=1" : "";
 const CUES = process.env.CUES ? `&cues=${encodeURIComponent(process.env.CUES)}` : "";
