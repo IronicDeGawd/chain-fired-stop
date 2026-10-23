@@ -15,17 +15,21 @@ async function sell(size) {
   return hash;
 }
 
-export async function openBotLane(emit, t0) {
-  const w = wallet();
-  const hash = await w.writeContract({
+// The open is split into send and confirm so the server can send both lanes'
+// opens back to back and have them land in the same block.
+export async function sendBotOpen(limit, nonce) {
+  return wallet().writeContract({
     address: ADDR.pool, abi: abi.pool, functionName: "placeOrder",
-    args: [true, 0n, through(await mark(), true), SETTINGS.quantity, FAR_EXPIRY_NS, IOC, 0, "0x0000000000000000000000000000000000000000", 0n],
-    gas: ORDER_GAS,
+    args: [true, 0n, limit, SETTINGS.quantity, FAR_EXPIRY_NS, IOC, 0, "0x0000000000000000000000000000000000000000", 0n],
+    gas: ORDER_GAS, nonce,
   });
-  await confirmed(hash);
-  const { size, entry } = await position(w.account.address);
+}
+
+export async function botOpened(hash, emit, t0) {
+  const r = await confirmed(hash);
+  const { size, entry } = await position(wallet().account.address);
   if (size <= 0n) throw new Error("bot lane: open did not fill");
-  emit({ lane: "bot", kind: "open", ms: Date.now() - t0, price: usd(entry), tx: hash });
+  emit({ lane: "bot", kind: "open", ms: Date.now() - t0, price: usd(entry), tx: hash, block: Number(r.blockNumber) });
   return { entry };
 }
 

@@ -6,10 +6,10 @@ import { createServer } from "node:http";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join, extname } from "node:path";
-import { ADDR, SETTINGS, MARKET } from "./src/config.mjs";
-import { mark, usd } from "./src/perps.mjs";
-import { openChainLane, armChainLane, watchChainLane, flattenChainLane } from "./src/chain.mjs";
-import { openBotLane, runBotWatcher, reconnectBot } from "./src/bot.mjs";
+import { ADDR, SETTINGS, MARKET, pub, account } from "./src/config.mjs";
+import { mark, usd, through } from "./src/perps.mjs";
+import { sendChainOpen, chainOpened, armChainLane, watchChainLane, flattenChainLane } from "./src/chain.mjs";
+import { sendBotOpen, botOpened, runBotWatcher, reconnectBot } from "./src/bot.mjs";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(__dir, "public");
@@ -36,9 +36,13 @@ async function handleRun(res) {
   let feed;
 
   try {
-    // One key signs both opens, so they go one after the other (no nonce race).
-    const bot = await openBotLane(emit, t0);
-    const chain = await openChainLane(emit, t0);
+    // One key signs both opens: consecutive nonces, sent back to back at one
+    // limit price, so both lanes open in the same block at the same price.
+    const limit = through(await mark(), true);
+    const nonce = await pub.getTransactionCount({ address: account().address, blockTag: "pending" });
+    const botTx = await sendBotOpen(limit, nonce);
+    const chainTx = await sendChainOpen(limit, nonce + 1);
+    const [bot, chain] = await Promise.all([botOpened(botTx, emit, t0), chainOpened(chainTx, emit, t0)]);
     const stop = (await mark()) - SETTINGS.stopOffset;
     run.stop = usd(stop);
     run.entry = { bot: usd(bot.entry), chain: usd(chain.entry) };
