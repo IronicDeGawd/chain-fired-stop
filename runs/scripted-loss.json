@@ -28,7 +28,7 @@
     "exit": 2418.1,
     "belowStop": 44.29
   },
-  "result": "chain sold just under the stop; the bot sold 44.29 below it",
+  "result": "chain sold just under the stop; the bot sold $44.29 below it",
   "events": [
     {
       "lane": "bot",

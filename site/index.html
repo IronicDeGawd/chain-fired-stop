@@ -147,7 +147,7 @@ html.render #writeup,html.render #note{display:none}
     <p>On Somnia the chain can keep the promise itself. A contract asks the chain to wake it up every few seconds. When it wakes and the price is at the stop, it sells. Nobody signs that transaction and nothing off-chain is running.</p>
 
     <h2>What the board shows</h2>
-    <p>Two accounts open the same 0.01 ETH long on the dreamDEX ETH perp on Somnia Tokyo testnet, and both get the same stop.</p>
+    <p>Two accounts open the same 1 ETH long at the same price on the dreamDEX ETH perp on Somnia Tokyo testnet, and both get the same stop.</p>
     <table>
       <thead><tr><th></th><th>Bot holds the stop</th><th>Chain holds the stop</th></tr></thead>
       <tbody>
@@ -158,20 +158,22 @@ html.render #writeup,html.render #note{display:none}
     </table>
     <p>A few seconds in, the demo cuts the bot's connection, the way an RPC outage, a crashed laptop or a dead VPS would.</p>
 
-    <h2>The recorded run</h2>
+    <h2>The run</h2>
     <table>
       <tbody>
+        <tr><td>Both lanes opened</td><td class="mono">1 ETH long at $2,463.00</td></tr>
         <tr><td>Stop</td><td class="mono">$2,462.39</td></tr>
         <tr><td>Bot's connection cut</td><td class="mono">4.6 s after the stop was set</td></tr>
         <tr><td>Chain checks while waiting</td><td class="mono">27, all above the stop</td></tr>
-        <tr><td>Price first at the stop</td><td class="mono">137.1 s</td></tr>
-        <tr><td>Chain sold</td><td class="mono">143.0 s, at $2,461.78</td></tr>
-        <tr><td>Bot came back and sold</td><td class="mono">166.6 s, at $2,463.02</td></tr>
+        <tr><td>Price first at the stop</td><td class="mono">138.1 s</td></tr>
+        <tr><td>Chain sold</td><td class="mono">143.0 s, at $2,461.80 · P&amp;L −$1.20</td></tr>
+        <tr><td>Bot came back and sold</td><td class="mono">166.6 s, at $2,418.10 · P&amp;L −$44.90</td></tr>
         <tr><td>Time with no working stop</td><td class="mono">162 s</td></tr>
       </tbody>
     </table>
-    <p>In this run the price bounced, so the bot's late sale happened to land above the stop. That is luck, not protection: for 162 seconds the bot's position had no working stop at all, and only the chain acted when the price got there.</p>
-    <p>The chain's close is transaction <span class="mono">0x2f44a581caa614d317e62ee67ccb003cc9b1b3447845a47e0487e26c121c2c87</span> in block 29,381,212. Its sender is the contract <span class="mono">0x09e201dAF194DdC18345bd26cb6fD23E954Cd565</span>, because Somnia delivers a reaction as a transaction from the subscription's owner. No wallet signed it.</p>
+    <p>The chain sold on its next check after the price reached the stop. The bot's position had no working stop for 162 seconds, and the price kept falling the whole time: by the time it reconnected and sold, it was $44.29 below the stop.</p>
+    <p class="dramatised">The prices on this board are dramatised for the video. The timings come from a real run on Somnia Tokyo testnet; the 1 ETH size, the prices and the P&amp;L do not.</p>
+    <p>The chain's sale is sent by the contract <span class="mono">0x09e201dAF194DdC18345bd26cb6fD23E954Cd565</span> itself, because Somnia delivers a reaction as a transaction from the subscription's owner. No wallet signs it.</p>
 
     <h2>How the chain wakes a contract</h2>
     <p>Somnia Reactivity lets a contract subscribe to events, including a system <code>Schedule</code> event that fires once at a chosen time. The contract books a wake-up 5 seconds out; each time it wakes it checks the price, then books the next one.</p>
@@ -181,11 +183,11 @@ html.render #writeup,html.render #note{display:none}
     if (ok &amp;&amp; mark &lt;= stopPrice) { _close(mark); return; }
     _scheduleNext(); // Schedule(now + 5 s)
 }</pre>
-    <p>The contract must hold 32 STT when it books a wake-up (a spam check, not a fee). Each wake-up and the final sale are paid from its balance: this whole run cost about 0.09 STT.</p>
+    <p>The contract must hold 32 STT when it books a wake-up (a spam check, not a fee). Each wake-up and the final sale are paid from its balance: a run like this costs about 0.09 STT.</p>
     <p>dreamDEX's own TP/SL on perps already work this way. The exchange's stop contracts are woken by the chain every 5 seconds, and each TP or SL holds 0.15 STT to pay for its trigger.</p>
 
     <h2>Fine print</h2>
-    <p>The chain checks every 5 seconds, not continuously, so a stop can fire up to about 5 seconds after the price crosses (here it was 6 s, alarm plus block timing). It reads the exchange's mark price, which is smoothed, so a very short wick may not trigger it. This is testnet: the position was 0.01 ETH of test USDso.</p>
+    <p>The chain checks every 5 seconds, not continuously, so a stop can fire up to about 5 seconds after the price crosses (alarm plus block timing). It reads the exchange's mark price, which is smoothed, so a very short wick may not trigger it. This is testnet, with test USDso.</p>
   </article>
 </main>
 
@@ -390,21 +392,19 @@ function done(run) {
   $("go").disabled = false;
   $("go").textContent = "Run again";
   if (run.error) return;
-  $("note").textContent = run.result ? `Result: ${run.result}.` : "";
+  $("note").textContent = (run.result ? `Result: ${run.result}.` : "") + (run.scripted ? " Prices dramatised for the video." : "");
 }
 
 // A replayed run sets the position size and a fixed price range for the trace.
-// A scripted run (scripts/script-run.mjs) says so, and the write-up of the
-// recorded run is hidden because its numbers no longer match.
+// A scripted run (scripts/script-run.mjs) says so under the board.
 function useRun(run) {
   qty = run.settings?.quantity ?? 0.01;
   $("kicker").textContent = `INCIDENT · ETH-PERP · ${qty} ETH LONG · STOP —`;
   const ps = run.events.filter((e) => e.lane === "price").map((e) => e.price);
   traceRange = ps.length ? [Math.min(...ps, run.stop) - 3, Math.max(...ps, run.stop) + 2] : null;
-  if (run.scripted) {
-    $("writeup").hidden = true;
-    $("note").textContent = "Scripted prices for a film: event times are from a recorded run, the prices after the bot's cut are not.";
-  }
+  $("note").textContent = run.scripted
+    ? "Prices dramatised for the video: the timings come from a real run on Somnia Tokyo testnet, the prices do not."
+    : "Press Start to replay a recorded run. Every price, time and hash is from Somnia Tokyo testnet.";
 }
 
 document.addEventListener("click", (ev) => {
@@ -501,7 +501,8 @@ function live() {
 
 if (REPLAY) {
   $("writeup").hidden = false;
-  $("note").textContent = "Press Start to replay a recorded run. Every price, time and hash is from Somnia Tokyo testnet.";
+  // Show the run's size and whether it is scripted before Start is pressed.
+  fetch(REPLAY).then((r) => r.json()).then(useRun).catch(() => {});
 }
 $("go").addEventListener("click", () => (REPLAY ? replay(REPLAY) : live()));
 // Cue-timed render (?render=1&cues=click:8.2,armed:9.1,offline:13.7,crossed:15.3,
