@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>og card source</title>
+<style>
+  html,body{margin:0;background:#070707}
+  .card{width:1200px;height:630px;position:relative;overflow:hidden;background:#070707;color:#e8e8ec;
+        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:60px 68px;box-sizing:border-box}
+  .card::before{content:"";position:absolute;inset:0;background:
+     radial-gradient(620px 320px at 88% -5%, rgba(110,242,158,.14), transparent 60%),
+     repeating-linear-gradient(0deg, rgba(255,255,255,.022) 0 1px, transparent 1px 32px),
+     repeating-linear-gradient(90deg, rgba(255,255,255,.022) 0 1px, transparent 1px 32px)}
+  .in{position:relative;height:100%;display:flex;flex-direction:column;justify-content:space-between}
+  .eyebrow{font-size:19px;color:#9a9aa6;letter-spacing:.05em;text-transform:uppercase}
+  h1{font-size:58px;line-height:1.08;margin:16px 0 0;letter-spacing:-.015em;max-width:1010px}
+  h1 em{font-style:normal;color:#6ef29e}
+  .row{display:flex;gap:14px}
+  .stat{flex:1;background:#0d0d12;border:1px solid #232329;border-radius:12px;padding:16px 20px}
+  .stat b{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:34px;margin-bottom:4px}
+  .stat.g b{color:#6ef29e} .stat.r b{color:#ff8f8f}
+  .stat span{color:#9a9aa6;font-size:16px}
+  .foot{display:flex;justify-content:space-between;align-items:flex-end;color:#6b6b76;font-size:20px}
+  .foot b{color:#8b8bff;font-weight:600}
+</style>
+</head>
+<body>
+<div class="card"><div class="in">
+  <div>
+    <div class="eyebrow">Who closed the position? · Somnia Tokyo testnet</div>
+    <h1>My bot held the stop-loss and went offline. <em>The chain sold by itself.</em></h1>
+  </div>
+  <div class="row">
+    <div class="stat r"><b>162 s</b><span>the bot's stop was down</span></div>
+    <div class="stat g"><b>5 s</b><span>the chain checks the stop</span></div>
+    <div class="stat g"><b>0</b><span>signatures on the chain's sale</span></div>
+  </div>
+  <div class="foot"><span>chain-stop.ironyaditya.xyz</span><span><b>@0xironyAditya</b></span></div>
+</div></div>
+</body>
+</html>
