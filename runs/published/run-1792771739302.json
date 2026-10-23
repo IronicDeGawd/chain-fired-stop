@@ -1,0 +1,531 @@
+{
+  "t0": 1792771739302,
+  "date": "2026-10-23T16:08:59.302Z",
+  "market": "ETH-PERP",
+  "contract": "0x09e201dAF194DdC18345bd26cb6fD23E954Cd565",
+  "settings": {
+    "quantity": 0.1,
+    "stopOffset": 1,
+    "botPollMs": 2000,
+    "botDiesAtMs": 3000,
+    "reconnectAfterMs": 180000
+  },
+  "stop": 2404.1867930079493,
+  "entry": {
+    "bot": 2407.82,
+    "chain": 2407.80992
+  },
+  "chain": {
+    "fired": true,
+    "lane": "chain",
+    "kind": "fired",
+    "ms": 62643,
+    "price": 2403.697576294524,
+    "ok": true,
+    "tx": "0x7195b75b960f144d4956b0ae09c7fa0ec608cf1360a0ab8214db7bf91f061ddd",
+    "block": 31197339,
+    "from": "0x09e201daf194ddc18345bd26cb6fd23e954cd565",
+    "gasUsed": 1644805
+  },
+  "bot": {
+    "exit": 2401.97995093403,
+    "belowStop": 2.21
+  },
+  "result": "chain fired, bot was offline",
+  "events": [
+    {
+      "lane": "bot",
+      "kind": "open",
+      "ms": 3523,
+      "price": 2407.82,
+      "tx": "0x1fc261e5d437352de2d105e359e1f5fdd5dd6dd6156dc5315e2466445ff5be74",
+      "block": 31196762
+    },
+    {
+      "lane": "chain",
+      "kind": "open",
+      "ms": 3889,
+      "price": 2407.80992,
+      "tx": "0x760beb3064a817f1655a6ea098eeedd8b218f1082514dc741915e2f808596421",
+      "block": 31196771
+    },
+    {
+      "lane": "chain",
+      "kind": "armed",
+      "ms": 5803,
+      "stop": 2404.1867930079493,
+      "tx": "0x9b4bb7c92dbef4561199e3135d855033b871a297ff7fcb040239e7155b15e005"
+    },
+    {
+      "lane": "bot",
+      "kind": "armed",
+      "ms": 5803,
+      "stop": 2404.1867930079493
+    },
+    {
+      "lane": "bot",
+      "kind": "poll",
+      "ms": 6015,
+      "price": 2405.1417824940363,
+      "hit": false
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 6803,
+      "price": 2405.226782494036
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 7805,
+      "price": 2405.379179983377
+    },
+    {
+      "lane": "bot",
+      "kind": "poll",
+      "ms": 8209,
+      "price": 2405.381677354899,
+      "hit": false
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 8806,
+      "price": 2405.381677354899
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 9807,
+      "price": 2405.381677354899
+    },
+    {
+      "lane": "bot",
+      "kind": "offline",
+      "ms": 10210
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 10808,
+      "price": 2405.386672097942
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 11809,
+      "price": 2405.2566720979416
+    },
+    {
+      "lane": "chain",
+      "kind": "tick",
+      "ms": 12854,
+      "n": 1,
+      "price": 2405.381677354899,
+      "tx": "0x86b666ee93d64b977c42239d126728c94ebffc9f721ef9371ad6b6c9ff5050a8"
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 12810,
+      "price": 2405.224206268161
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 13811,
+      "price": 2405.0943324351265
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 14811,
+      "price": 2404.961984886875
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 15813,
+      "price": 2404.8120085431815
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 16813,
+      "price": 2405.0543928901307
+    },
+    {
+      "lane": "chain",
+      "kind": "tick",
+      "ms": 17168,
+      "n": 2,
+      "price": 2404.961984886875,
+      "tx": "0x40df7a47b7bac095b1ab23e4a51a73c8a7ee0d1788e17c569bd448f8d2f328ba"
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 17814,
+      "price": 2405.0343271781694
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 18815,
+      "price": 2405.132146091433
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 19816,
+      "price": 2405.0868560914328
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 20817,
+      "price": 2405.149300893385
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 21818,
+      "price": 2405.079274608601
+    },
+    {
+      "lane": "chain",
+      "kind": "tick",
+      "ms": 22639,
+      "n": 3,
+      "price": 2405.1268560914323,
+      "tx": "0x5fb877d0d583f0f24865ca4497737db0055b6efa4fa03fca1b57fb08c472df7d"
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 22819,
+      "price": 2404.9993587199106
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 23820,
+      "price": 2404.9993587199106
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 24821,
+      "price": 2404.9993587199106
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 25823,
+      "price": 2405.0118587199113
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 26823,
+      "price": 2405.091648719911
+    },
+    {
+      "lane": "chain",
+      "kind": "tick",
+      "ms": 27701,
+      "n": 4,
+      "price": 2404.9993587199106,
+      "tx": "0x64d09174d6e422ddaa48b9efbc31a7b436f4fbe84706c7b378709b541dbc14a5"
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 27824,
+      "price": 2404.9993587199106
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 28826,
+      "price": 2404.8819822583973
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 29827,
+      "price": 2404.6195427134007
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 30828,
+      "price": 2404.694542713401
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 31828,
+      "price": 2404.5346110538403
+    },
+    {
+      "lane": "chain",
+      "kind": "tick",
+      "ms": 32574,
+      "n": 5,
+      "price": 2404.624542713401,
+      "tx": "0x6b15ee71245508defdefa8e679615622172bd65c19b820decf1030ede7ba2c1c"
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 32829,
+      "price": 2404.59962945319
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 33830,
+      "price": 2404.5396057968837
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 34831,
+      "price": 2404.527118939276
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 35832,
+      "price": 2404.357208307543
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 36833,
+      "price": 2404.432210936021
+    },
+    {
+      "lane": "chain",
+      "kind": "tick",
+      "ms": 37818,
+      "n": 6,
+      "price": 2404.527118939276,
+      "tx": "0x39b7b216fcd17906294714050172bf0b7f412f3873e1cc156ecaf28d659e357c"
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 37833,
+      "price": 2404.487142595582
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 38835,
+      "price": 2404.489642595582
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 39835,
+      "price": 2404.4546425955823
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 40837,
+      "price": 2404.204905443425
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 41837,
+      "price": 2404.1924185858174
+    },
+    {
+      "lane": "chain",
+      "kind": "tick",
+      "ms": 42566,
+      "n": 7,
+      "price": 2404.487142595582,
+      "tx": "0x279e8ecf6f3bd3ebe47edc20b13364c4b6e2fad4373c121a931abffae5c9da7b"
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 42839,
+      "price": 2404.2074185858173
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 43839,
+      "price": 2405.0221767658013
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 44840,
+      "price": 2404.3672188214564
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 45841,
+      "price": 2404.4146846512367
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 46842,
+      "price": 2404.4146846512367
+    },
+    {
+      "lane": "chain",
+      "kind": "tick",
+      "ms": 47935,
+      "n": 8,
+      "price": 2404.3672188214564,
+      "tx": "0xfddc3cb10fa64c7a2d53ed9d52f506d68f0c734fa5f824e63650a08208af8d9e"
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 47843,
+      "price": 2404.422176765802
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 48844,
+      "price": 2404.422176765802
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 49845,
+      "price": 2404.424674137323
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 50847,
+      "price": 2404.424674137323
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 51847,
+      "price": 2404.4171820227584
+    },
+    {
+      "lane": "chain",
+      "kind": "tick",
+      "ms": 52228,
+      "n": 9,
+      "price": 2404.424674137323,
+      "tx": "0x3f51c14875b7c7a42e2e634f6759af1d995a82b96a2f03c7432f449fc916e7c9"
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 52848,
+      "price": 2404.3621820227586
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 53849,
+      "price": 2404.3621820227586
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 54849,
+      "price": 2404.2872608771113
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 55850,
+      "price": 2404.162392301034
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 56851,
+      "price": 2403.8650105825627
+    },
+    {
+      "lane": "chain",
+      "kind": "tick",
+      "ms": 57687,
+      "n": 10,
+      "price": 2404.2872608771113,
+      "tx": "0x26d0528e5bdc161582f21823e906a4aa5403a4eac026b6dbb138cc7d124dc36c"
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 57852,
+      "price": 2403.801038152132
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 58853,
+      "price": 2403.8574764123437
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 59853,
+      "price": 2403.6475762945242
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 60854,
+      "price": 2403.698641294524
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 61855,
+      "price": 2403.5726236071364
+    },
+    {
+      "lane": "chain",
+      "kind": "fired",
+      "ms": 62643,
+      "price": 2403.697576294524,
+      "ok": true,
+      "tx": "0x7195b75b960f144d4956b0ae09c7fa0ec608cf1360a0ab8214db7bf91f061ddd",
+      "block": 31197339,
+      "from": "0x09e201daf194ddc18345bd26cb6fd23e954cd565",
+      "gasUsed": 1644805
+    },
+    {
+      "lane": "price",
+      "kind": "mark",
+      "ms": 62855,
+      "price": 2403.507691947575
+    },
+    {
+      "lane": "bot",
+      "kind": "reconnected",
+      "ms": 243033
+    },
+    {
+      "lane": "bot",
+      "kind": "closed",
+      "ms": 245997,
+      "price": 2401.97995093403,
+      "tx": "0x27662b190b8361d1e11c3575b61e776365c45b6134eff88bfb65e844e7a107d8",
+      "online": false
+    }
+  ]
+}
