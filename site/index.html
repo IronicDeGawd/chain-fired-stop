@@ -63,6 +63,7 @@
   h1 em{font-style:normal;color:var(--good)}
   h2{font-size:20px;margin:56px 0 14px;padding-top:24px;border-top:1px solid var(--line)}
   p{margin:0 0 12px;max-width:72ch}
+  p a{color:var(--accent);text-underline-offset:3px}
   .lede{font-size:18px;color:var(--muted);max-width:68ch}
   .meta{color:var(--dim);font-size:13px;margin-bottom:28px}
   .meta a{color:var(--accent);text-decoration:none}
@@ -151,7 +152,7 @@
   </ul>
 
   <h2 id="dreamdex">dreamDEX perps already work this way</h2>
-  <p>dreamDEX's own TP/SL on perps are held the same way: the exchange's stop contracts are woken by the chain every 5 seconds, and each TP or SL holds 0.15 STT to pay for its trigger. Set a stop on dreamDEX perps and the chain holds it for you. And it is not just dreamDEX: any contract can do this, which is why I could write my own.</p>
+  <p>dreamDEX's own TP/SL on perps are held the same way: the exchange's stop contracts are woken by the chain every 5 seconds, and each TP or SL holds 0.15 STT to pay for its trigger. Set a stop on dreamDEX perps and the chain holds it for you (<a href="https://app.dreamdex.io/docs/trading/perps-testnet/orders#take-profit-and-stop-loss">how TP/SL work on dreamDEX perps</a>). And it is not just dreamDEX: any contract can do this, which is why I could write my own.</p>
 
   <h2 id="fine">Fine print</h2>
   <ul>
@@ -169,6 +170,7 @@
   <p>
     <a class="cta" href="https://github.com/IronicDeGawd/chain-fired-stop">Code on GitHub →</a>
     <a class="cta" href="https://docs.somnia.network/developer/reactivity">Somnia Reactivity docs →</a>
+    <a class="cta" href="https://app.dreamdex.io/docs/trading/perps-testnet">dreamDEX perps docs →</a>
   </p>
 
   <footer>
