@@ -12,8 +12,8 @@
   },
   "stop": 2462.388853704816,
   "entry": {
-    "bot": 2462.74,
-    "chain": 2463.31
+    "bot": 2463,
+    "chain": 2463
   },
   "chain": {
     "fired": true,
@@ -34,13 +34,13 @@
       "lane": "bot",
       "kind": "open",
       "ms": 2573,
-      "price": 2462.74
+      "price": 2463
     },
     {
       "lane": "chain",
       "kind": "open",
       "ms": 4647,
-      "price": 2463.31
+      "price": 2463
     },
     {
       "lane": "chain",

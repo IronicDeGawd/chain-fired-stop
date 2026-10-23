@@ -11,6 +11,7 @@ const run = JSON.parse(await readFile(src, "utf8"));
 
 const CHAIN_SELL = 2461.80; // the chain's next check, just under the stop
 const BOT_SELL = 2418.10;   // where the bot finally sells after reconnecting
+const ENTRY = 2463.00;      // both lanes open at the same price, so their P&L matches until the cut
 
 const ev = [...run.events].sort((a, b) => a.ms - b.ms).map(({ tx, block, from, ...e }) => e);
 const cut = ev.find((e) => e.kind === "offline");
@@ -39,6 +40,7 @@ const path = (ms) => {
 
 const out = [];
 for (const e of ev) {
+  if (e.kind === "open") e.price = ENTRY;
   if (e.ms > cut.ms && (e.lane === "price" || e.kind === "tick")) e.price = path(e.ms);
   if (e === fired) e.price = CHAIN_SELL;
   if (e === closed) {
@@ -64,10 +66,11 @@ const scripted = {
   scripted: true,
   note: "Scripted price path for the film: event times are from the recorded run, prices after the cut are not.",
   settings: { ...run.settings, quantity: 1 },
+  entry: { bot: ENTRY, chain: ENTRY },
   chain: { ...chain, price: CHAIN_SELL },
   bot: { exit: BOT_SELL, belowStop: Number((run.stop - BOT_SELL).toFixed(2)) },
   result: `chain sold just under the stop; the bot sold ${(run.stop - BOT_SELL).toFixed(2)} below it`,
   events: out,
 };
 await writeFile(dst, JSON.stringify(scripted, null, 2) + "\n");
-console.log(`wrote ${dst}: ${out.length} events, chain P&L ${(CHAIN_SELL - run.entry.chain).toFixed(2)}, bot P&L ${(BOT_SELL - run.entry.bot).toFixed(2)}`);
+console.log(`wrote ${dst}: ${out.length} events, chain P&L ${(CHAIN_SELL - ENTRY).toFixed(2)}, bot P&L ${(BOT_SELL - ENTRY).toFixed(2)}`);
