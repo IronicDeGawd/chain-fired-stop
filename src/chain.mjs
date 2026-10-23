@@ -5,17 +5,18 @@ import { decodeEventLog } from "viem";
 import { pub, wallet, ADDR, SETTINGS, ORDER_GAS, abi } from "./config.mjs";
 import { mark, position, through, confirmed, usd } from "./perps.mjs";
 
-export async function openChainLane(emit, t0) {
-  const w = wallet();
-  const m = await mark();
-  const hash = await w.writeContract({
+export async function sendChainOpen(limit, nonce) {
+  return wallet().writeContract({
     address: ADDR.chainStop, abi: abi.chainStop, functionName: "openLong",
-    args: [SETTINGS.quantity, through(m, true)], gas: ORDER_GAS,
+    args: [SETTINGS.quantity, limit], gas: ORDER_GAS, nonce,
   });
-  await confirmed(hash);
+}
+
+export async function chainOpened(hash, emit, t0) {
+  const r = await confirmed(hash);
   const { size, entry } = await position(ADDR.chainStop);
   if (size <= 0n) throw new Error("chain lane: open did not fill");
-  emit({ lane: "chain", kind: "open", ms: Date.now() - t0, price: usd(entry), tx: hash });
+  emit({ lane: "chain", kind: "open", ms: Date.now() - t0, price: usd(entry), tx: hash, block: Number(r.blockNumber) });
   return { entry };
 }
 
