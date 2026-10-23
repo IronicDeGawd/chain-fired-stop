@@ -5,15 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chain-Fired Stop</title>
 <meta name="description" content="My bot held the stop-loss and went offline. The chain sold by itself. A live comparison on Somnia Tokyo testnet.">
+<meta name="author" content="Aditya (@0xironyAditya)">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#f6f5f1">
+<link rel="canonical" href="https://chain-stop.ironyaditya.xyz/">
 <meta property="og:type" content="article">
+<meta property="og:site_name" content="ironyaditya.xyz">
 <meta property="og:title" content="Who closed the position?">
 <meta property="og:description" content="My bot held the stop-loss and went offline. The chain sold by itself, with nobody signing.">
 <meta property="og:url" content="https://chain-stop.ironyaditya.xyz/">
 <meta property="og:image" content="https://chain-stop.ironyaditya.xyz/og.png">
+<meta property="og:image:secure_url" content="https://chain-stop.ironyaditya.xyz/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Who closed the position? A bot's stop and a chain-held stop side by side: the bot went 162 s unprotected, the chain closed the position.">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2026-10-23">
+<meta property="article:author" content="https://x.com/0xironyAditya">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@0xironyAditya">
+<meta name="twitter:creator" content="@0xironyAditya">
 <meta name="twitter:title" content="Who closed the position?">
 <meta name="twitter:description" content="My bot held the stop-loss and went offline. The chain sold by itself.">
 <meta name="twitter:image" content="https://chain-stop.ironyaditya.xyz/og.png">
+<meta name="twitter:image:alt" content="Who closed the position? A bot's stop and a chain-held stop side by side: the bot went 162 s unprotected, the chain closed the position.">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"Who closed the position?","description":"My bot held the stop-loss and went offline. The chain sold by itself. A live comparison on Somnia Tokyo testnet.","image":"https://chain-stop.ironyaditya.xyz/og.png","datePublished":"2026-10-23","mainEntityOfPage":"https://chain-stop.ironyaditya.xyz/","author":{"@type":"Person","name":"Aditya","url":"https://x.com/0xironyAditya"}}</script>
 <script>window.REPLAY = "runs/featured.json";</script>
 <link rel="icon" href="favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -54,6 +71,10 @@ button.go:disabled{opacity:.45;cursor:default}
 .foot{margin-top:auto;display:flex;justify-content:space-between;font-size:14px;padding-top:8px}
 .foot b{font-family:var(--mono);font-weight:500}
 .foot + .foot{padding-top:0;margin-top:0}
+.foot.pnl{align-items:baseline}
+.foot.pnl b{font-size:26px}
+.chain-text{color:var(--chain)}
+.trace{display:block;width:100%;height:120px;margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:10px;font-family:var(--mono);font-size:12px}
 .clock-wrap{display:flex;flex-direction:column;align-items:flex-end}
 .clock-label{font-size:12px;color:var(--faint);white-space:nowrap}
 .clock,button.go{white-space:nowrap}
@@ -104,15 +125,18 @@ html.render #writeup,html.render #note{display:none}
       <ul class="log" id="bot-log" aria-live="polite"></ul>
       <div class="foot"><span class="sub">No working stop</span><b id="bot-unprot" class="bot-text">—</b></div>
       <div class="foot"><span class="sub">Position</span><b id="bot-pos">—</b></div>
+      <div class="foot pnl"><span class="sub" id="bot-pnl-label">P&amp;L</span><b id="bot-pnl" class="bot-text">—</b></div>
     </div>
     <div class="card">
       <div class="card-top"><h2>Chain holds the stop</h2><span class="pill" id="chain-pill">IDLE</span></div>
       <p class="sub">Somnia wakes a contract every 5 s. No bot, no server.</p>
       <ul class="log" id="chain-log" aria-live="polite"></ul>
       <div class="foot"><span class="sub">Position</span><b id="chain-pos">—</b></div>
+      <div class="foot pnl"><span class="sub" id="chain-pnl-label">P&amp;L</span><b id="chain-pnl" class="chain-text">—</b></div>
     </div>
   </section>
 
+  <svg id="trace" class="trace" aria-hidden="true"></svg>
   <div class="price"><span>Mark price <b id="mark">—</b></span><span>Stop <b id="stop">—</b></span><span id="source" style="margin-left:auto">Somnia Tokyo testnet · dreamDEX ETH perp</span></div>
   <p class="note" id="note">Press Start: both accounts open the same long, set the same stop, and the demo cuts the bot's connection a few seconds in.</p>
 
@@ -175,6 +199,9 @@ const SPEED = Number(params.get("speed") || 1);
 
 let armedAt = null, stop = null, botOffline = false, crossedShown = false, clockTimer = null, clockBase = 0;
 let offlineAt = null, botBackAt = null, chainDoneAt = null;
+// Position size and price range come from a replayed run; a live run uses the defaults.
+let qty = 0.01, traceRange = null;
+let entry = {}, settled = {}, sold = {}, marks = [];
 
 // The clock and the "no working stop" counter both read one run time (ms
 // since the run began), driven by the live timer or by the replay loop.
@@ -184,6 +211,50 @@ function setNow(ms) {
     const end = botBackAt ?? ms;
     $("bot-unprot").textContent = ((end - offlineAt) / 1000).toFixed(1) + " s";
   }
+  drawTrace(ms);
+}
+
+const signed = (n) => (n < 0 ? "−" : "+") + usd(Math.abs(n));
+function pnl(lane, price, final = false) {
+  if (entry[lane] === undefined || settled[lane]) return;
+  $(lane + "-pnl").textContent = signed((price - entry[lane]) * qty);
+  $(lane + "-pnl-label").textContent = final ? "Realised P&L" : "Open P&L";
+  settled[lane] = final;
+}
+
+// Mark price over the last 40 s of run time: the stop as a dashed line, the
+// bot's offline stretch shaded, and a dot where each lane sold.
+const TRACE_MS = 40000;
+function drawTrace(now) {
+  const svg = $("trace"), W = svg.clientWidth, H = svg.clientHeight;
+  if (!marks.length || !W) return;
+  const left = Math.max(marks[0].ms, now - TRACE_MS);
+  const shown = marks.filter((m) => m.ms >= left - 1000 && m.ms <= now);
+  let [lo, hi] = traceRange ?? [Math.min(...shown.map((m) => m.price), stop ?? Infinity), Math.max(...shown.map((m) => m.price), stop ?? -Infinity)];
+  if (!traceRange && hi - lo < 2) { const mid = (hi + lo) / 2; lo = mid - 1; hi = mid + 1; }
+  const x0 = 16, x1 = W - 104, y0 = 22, y1 = H - 14;
+  const X = (ms) => x0 + Math.max(0, ms - left) / TRACE_MS * (x1 - x0);
+  const Y = (p) => y0 + (hi - p) / (hi - lo) * (y1 - y0);
+  let s = "";
+  if (offlineAt !== null) {
+    const a = X(offlineAt), b = X(botBackAt ?? now);
+    s += `<rect x="${a}" y="1" width="${Math.max(0, b - a)}" height="${H - 2}" fill="var(--bot-bg)" opacity=".55"/>`;
+    if (b - a > 90) s += `<text x="${a + 8}" y="15" fill="var(--bot)">bot offline</text>`;
+  }
+  if (stop !== null) s += `<line x1="${x0}" x2="${x1}" y1="${Y(stop)}" y2="${Y(stop)}" stroke="var(--muted)" stroke-dasharray="4 4"/>`
+    + `<text x="${x0}" y="${Y(stop) + 14}" fill="var(--faint)">stop ${usd(stop)}</text>`;
+  s += `<polyline fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round" points="${shown.map((m) => `${X(m.ms)},${Y(m.price)}`).join(" ")}"/>`;
+  for (const L of ["chain", "bot"]) if (sold[L] && sold[L].ms >= left) {
+    const { ms, price } = sold[L], x = X(ms), y = Y(price), below = y < H / 2;
+    s += `<circle cx="${x}" cy="${y}" r="5" fill="var(--${L})"/>`
+      + `<text x="${x}" y="${below ? y + 20 : y - 10}" text-anchor="middle" fill="var(--${L})">${L} sold</text>`;
+  }
+  const lastMark = shown[shown.length - 1];
+  if (lastMark && !(sold.bot && sold.bot.ms <= now)) {
+    const x = X(lastMark.ms), y = Y(lastMark.price);
+    s += `<circle cx="${x}" cy="${y}" r="3.5" fill="var(--ink)"/><text x="${x + 10}" y="${y + 4}" fill="var(--ink)">${usd(lastMark.price)}</text>`;
+  }
+  svg.innerHTML = s;
 }
 
 function rel(ms) {
@@ -223,29 +294,36 @@ function reset() {
   $("bot-pos").textContent = "—"; $("chain-pos").textContent = "—";
   $("mark").textContent = "—"; $("stop").textContent = "—";
   $("clock").textContent = "0.0 s";
+  entry = {}; settled = {}; sold = {}; marks = [];
+  for (const L of ["bot", "chain"]) { $(L + "-pnl").textContent = "—"; $(L + "-pnl-label").textContent = "P&L"; }
+  $("trace").innerHTML = "";
 }
 
 function handle(e) {
   if (e.kind === "error") { $("note").innerHTML = `<span class="err">Run stopped: ${e.message}</span>`; return; }
   if (e.lane === "price") {
     $("mark").textContent = usd(e.price);
+    marks.push(e);
+    pnl("bot", e.price); pnl("chain", e.price);
     if (botOffline && stop !== null && e.price <= stop && !crossedShown) {
       crossedShown = true;
       line("bot", e.ms, "price crossed the stop · nobody watching", "bot");
+      if (RENDER) window.__marks.push({ lane: "price", kind: "crossed", frame: renderFrame });
     }
     return;
   }
   const L = e.lane;
   switch (e.kind) {
     case "open":
-      line(L, e.ms, `opened 0.01 ETH long @ ${usd(e.price)}`);
-      $(L + "-pos").textContent = "0.01 ETH long";
+      line(L, e.ms, `opened ${qty} ETH long @ ${usd(e.price)}`);
+      $(L + "-pos").textContent = `${qty} ETH long`;
+      entry[L] = e.price; pnl(L, e.price);
       break;
     case "armed":
       if (L === "chain") {
         armedAt = e.ms; stop = e.stop;
         $("stop").textContent = usd(stop);
-        $("kicker").textContent = `INCIDENT · ETH-PERP · 0.01 ETH LONG · STOP ${usd(stop)}`;
+        $("kicker").textContent = `INCIDENT · ETH-PERP · ${qty} ETH LONG · STOP ${usd(stop)}`;
         line("chain", e.ms, `armed · stop ${usd(e.stop)} · chain alarm every 5 s`);
         pill("chain", "ARMED", true);
       } else {
@@ -275,9 +353,10 @@ function handle(e) {
     }
     case "fired":
       line("chain", e.ms, `chain check · ${usd(e.price)} ≤ stop · SELL`, "chain");
-      line("chain", e.ms, `0.01 ETH closed · ${(e.gasUsed / 1e6).toFixed(2)}M gas`);
-      line("chain", e.ms, `sent by the contract itself · ${hash(e.tx)}`);
+      line("chain", e.ms, `${qty} ETH closed · ${(e.gasUsed / 1e6).toFixed(2)}M gas`);
+      line("chain", e.ms, "sent by the contract itself" + (e.tx ? ` · ${hash(e.tx)}` : ""));
       $("chain-pos").textContent = "0.00 ETH";
+      pnl("chain", e.price, true); sold.chain = e;
       pill("chain", "CLOSED BY CHAIN", true);
       $("clock").textContent = ((e.ms - armedAt) / 1000).toFixed(1) + " s";
       chainDoneAt = e.ms;
@@ -290,16 +369,17 @@ function handle(e) {
       break;
     case "closed":
       if (e.online) {
-        line("bot", e.ms, `sold @ ${usd(e.price)} · ${hash(e.tx)}`);
+        line("bot", e.ms, `sold @ ${usd(e.price)}` + (e.tx ? ` · ${hash(e.tx)}` : ""));
         pill("bot", "CLOSED", false);
       } else {
         const gap = stop - e.price;
         line("bot", e.ms, `sold late @ ${usd(e.price)} · ${gap >= 0 ? usd(gap) + " below" : usd(-gap) + " above"} the stop`, "bot");
-        line("bot", e.ms, hash(e.tx));
+        if (e.tx) line("bot", e.ms, hash(e.tx));
         pill("bot", "CLOSED LATE", true);
       }
-      if (offlineAt !== null) { botBackAt = e.ms; setNow(e.ms); }
       $("bot-pos").textContent = "0.00 ETH";
+      pnl("bot", e.price, true); sold.bot = e;
+      if (offlineAt !== null) { botBackAt = e.ms; setNow(e.ms); }
       break;
   }
 }
@@ -311,6 +391,20 @@ function done(run) {
   $("go").textContent = "Run again";
   if (run.error) return;
   $("note").textContent = run.result ? `Result: ${run.result}.` : "";
+}
+
+// A replayed run sets the position size and a fixed price range for the trace.
+// A scripted run (scripts/script-run.mjs) says so, and the write-up of the
+// recorded run is hidden because its numbers no longer match.
+function useRun(run) {
+  qty = run.settings?.quantity ?? 0.01;
+  $("kicker").textContent = `INCIDENT · ETH-PERP · ${qty} ETH LONG · STOP —`;
+  const ps = run.events.filter((e) => e.lane === "price").map((e) => e.price);
+  traceRange = ps.length ? [Math.min(...ps, run.stop) - 3, Math.max(...ps, run.stop) + 2] : null;
+  if (run.scripted) {
+    $("writeup").hidden = true;
+    $("note").textContent = "Scripted prices for a film: event times are from a recorded run, the prices after the bot's cut are not.";
+  }
 }
 
 document.addEventListener("click", (ev) => {
@@ -325,17 +419,26 @@ document.addEventListener("click", (ev) => {
 async function replay(url) {
   const run = await (await fetch(url)).json();
   reset();
+  useRun(run);
   $("go").disabled = true;
   const ev = run.events;
   const ticks = ev.filter((e) => e.kind === "tick").map((e) => e.ms);
   // Fast-forward windows: the repeated ticks (after tick 2, until the last two),
   // and the quiet wait between the chain's sale and the bot reconnecting.
+  // ?ffwide=1 (short cut for the film) also speeds the opening orders and runs
+  // the tick stretch from just after the bot's cut to the last check.
   const windows = [];
-  if (ticks.length > 4) windows.push([ticks[1], ticks[ticks.length - 2]]);
   const fired = ev.find((e) => e.kind === "fired"), back = ev.find((e) => e.kind === "reconnected");
+  const armedEv = ev.find((e) => e.kind === "armed"), cut = ev.find((e) => e.kind === "offline");
+  if (params.get("ffwide") === "1" && armedEv && cut && ticks.length) {
+    windows.push([0, armedEv.ms - 300]);
+    windows.push([cut.ms + 1000, ticks[ticks.length - 1]]);
+  } else if (ticks.length > 4) windows.push([ticks[1], ticks[ticks.length - 2]]);
   if (fired && back && back.ms - fired.ms > 6000) windows.push([fired.ms + 2000, back.ms - 2000]);
   const inFF = (t) => windows.some(([a, b]) => t >= a && t < b);
   const useFF = params.get("ff") !== "0";
+  const FFX = Number(params.get("ffx") || 10);
+  $("ff").textContent = `fast-forward ×${FFX}`;
   let vt = 0, last = performance.now();
   for (const e of ev) {
     while (vt < e.ms) {
@@ -343,11 +446,12 @@ async function replay(url) {
       const now = performance.now();
       const fast = useFF && inFF(vt);
       $("ff").classList.toggle("on", fast);
-      vt = Math.min(e.ms, vt + (dt ?? now - last) * SPEED * (fast ? 10 : 1));
+      vt = Math.min(e.ms, vt + (dt ?? now - last) * SPEED * (fast ? FFX : 1));
       last = now;
       setNow(vt);
     }
     handle(e);
+    if (RENDER) window.__marks.push({ lane: e.lane, kind: e.kind, frame: renderFrame });
   }
   done(run);
 }
@@ -356,10 +460,11 @@ async function replay(url) {
 // frame at a time (window.__step), so a recording is identical every time.
 const RENDER = params.get("render") === "1";
 const FRAME_MS = 1000 / 30;
-let stepResolve = null;
+let stepResolve = null, renderFrame = 0;
+window.__marks = []; // clip frame of each event, for edit notes
 function frame() {
   if (!RENDER) return new Promise((r) => requestAnimationFrame(() => r(null)));
-  return new Promise((r) => (stepResolve = () => r(FRAME_MS)));
+  return new Promise((r) => (stepResolve = () => { renderFrame++; r(FRAME_MS); }));
 }
 window.__step = () => { const r = stepResolve; stepResolve = null; if (r) r(); return !!r; };
 window.__finished = false;
@@ -374,6 +479,7 @@ async function renderIntro() {
     const k = Math.min(1, i / approach), ease = 1 - Math.pow(1 - k, 3);
     c.style.transform = `translate(${from.x + (to.x - from.x) * ease}px, ${from.y + (to.y - from.y) * ease}px)`;
     $("go").classList.toggle("pressed", i > approach && i <= approach + press);
+    if (i === approach + 1) window.__marks.push({ lane: "cursor", kind: "click", frame: renderFrame });
     await frame();
   }
   c.style.display = "none";
@@ -398,7 +504,84 @@ if (REPLAY) {
   $("note").textContent = "Press Start to replay a recorded run. Every price, time and hash is from Somnia Tokyo testnet.";
 }
 $("go").addEventListener("click", () => (REPLAY ? replay(REPLAY) : live()));
-if (RENDER && REPLAY) {
+// Cue-timed render (?render=1&cues=click:8.2,armed:9.1,offline:13.7,crossed:15.3,
+// fired:17.1,closed:22.2,end:25.5): each named moment of the run lands on a
+// given clip second, so the board follows a narrator's words. Run time is
+// stretched linearly between cues; whenever a stretch runs faster than real
+// time the badge shows its actual factor. Every number shown is still recorded.
+async function cueRender(url, spec) {
+  const run = await (await fetch(url)).json();
+  // Price reads are logged when they return, so a few sit slightly out of
+  // order; sort by time so no event waits behind a later one.
+  const ev = [...run.events].sort((a, b) => a.ms - b.ms);
+  const find = (pred) => ev.find(pred);
+  const cut = find((e) => e.kind === "offline");
+  const anchorMs = {
+    click: 0,
+    armed: find((e) => e.kind === "armed" && e.lane === "chain").ms,
+    offline: cut.ms,
+    crossed: find((e) => e.lane === "price" && e.ms > cut.ms && e.price <= run.stop).ms,
+    fired: find((e) => e.kind === "fired").ms,
+    closed: find((e) => e.kind === "closed" && e.lane === "bot").ms,
+  };
+  const cues = Object.fromEntries(spec.split(",").map((p) => p.split(":")).map(([k, v]) => [k, Number(v)]));
+  const pts = Object.keys(anchorMs).filter((k) => k in cues).map((k) => [cues[k], anchorMs[k]]);
+  const endT = cues.end ?? pts[pts.length - 1][0] + 1.5;
+  const at = (t) => { // clip seconds -> [run ms, speed factor]
+    if (t <= pts[0][0]) return [0, 1];
+    for (let i = 1; i < pts.length; i++) {
+      const [t0, m0] = pts[i - 1], [t1, m1] = pts[i];
+      if (t <= t1) return [m0 + (m1 - m0) * (t - t0) / (t1 - t0), (m1 - m0) / 1000 / (t1 - t0)];
+    }
+    return [ev[ev.length - 1].ms, 1];
+  };
+
+  reset();
+  useRun(run);
+  const c = $("cursor"), b = $("go").getBoundingClientRect();
+  const from = { x: b.left - 260, y: b.top + 160 }, to = { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+  const clickT = cues.click, approach = 0.9;
+  let next = 0, clicked = false;
+  for (;;) {
+    const t = renderFrame / 30 + 1e-6; // so a cue on an exact frame lands on that frame
+    if (t >= clickT - approach && t < clickT + 0.45) {
+      const k = Math.min(1, (t - (clickT - approach)) / approach), ease = 1 - Math.pow(1 - k, 3);
+      c.style.display = "block";
+      c.style.transform = `translate(${from.x + (to.x - from.x) * ease}px, ${from.y + (to.y - from.y) * ease}px)`;
+    } else c.style.display = "none";
+    $("go").classList.toggle("pressed", t >= clickT && t < clickT + 0.2);
+    if (t >= clickT && !clicked) {
+      clicked = true;
+      $("go").disabled = true;
+      window.__marks.push({ lane: "cursor", kind: "click", frame: renderFrame });
+    }
+    if (clicked) {
+      const [vt, speed] = at(t);
+      const fast = speed >= 1.5;
+      $("ff").textContent = `fast-forward ×${Math.round(speed)}`;
+      $("ff").classList.toggle("on", fast);
+      while (next < ev.length && ev[next].ms <= vt) {
+        handle(ev[next]);
+        window.__marks.push({ lane: ev[next].lane, kind: ev[next].kind, frame: renderFrame });
+        next++;
+      }
+      setNow(vt);
+    }
+    if (t >= endT) break;
+    await frame();
+  }
+  while (next < ev.length) handle(ev[next++]);
+  done(run);
+}
+
+if (RENDER && REPLAY && params.get("cues")) {
+  document.documentElement.classList.add("render");
+  (async () => {
+    await document.fonts.ready;
+    await cueRender(REPLAY, params.get("cues"));
+    window.__finished = true;
+  })();
+} else if (RENDER && REPLAY) {
   document.documentElement.classList.add("render");
   (async () => {
     await document.fonts.ready;
