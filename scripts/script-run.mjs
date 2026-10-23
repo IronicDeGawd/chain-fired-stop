@@ -69,7 +69,7 @@ const scripted = {
   entry: { bot: ENTRY, chain: ENTRY },
   chain: { ...chain, price: CHAIN_SELL },
   bot: { exit: BOT_SELL, belowStop: Number((run.stop - BOT_SELL).toFixed(2)) },
-  result: `chain sold just under the stop; the bot sold ${(run.stop - BOT_SELL).toFixed(2)} below it`,
+  result: `chain sold just under the stop; the bot sold $${(run.stop - BOT_SELL).toFixed(2)} below it`,
   events: out,
 };
 await writeFile(dst, JSON.stringify(scripted, null, 2) + "\n");
