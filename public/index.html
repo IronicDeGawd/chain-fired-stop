@@ -370,6 +370,7 @@ function done(run) {
 // recorded run is hidden because its numbers no longer match.
 function useRun(run) {
   qty = run.settings?.quantity ?? 0.01;
+  $("kicker").textContent = `INCIDENT · ETH-PERP · ${qty} ETH LONG · STOP —`;
   const ps = run.events.filter((e) => e.lane === "price").map((e) => e.price);
   traceRange = ps.length ? [Math.min(...ps, run.stop) - 3, Math.max(...ps, run.stop) + 2] : null;
   if (run.scripted) {
